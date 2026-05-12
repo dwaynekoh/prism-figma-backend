@@ -50,9 +50,7 @@ app.get('/api/me', async (req, res) => {
         tokenRenewalDate: det.tokenRenewalDate,
         apiCredit: {
           apiCreditActionModel: {
-            totalApiCredit: det.apiCredit?.apiCreditActionModel?.totalApiCredit
-              ?? det.subscriptionTokens
-              ?? 0,
+            totalApiCredit: (det.paidTokens ?? 0) + (det.subscriptionTokens ?? 0),
           },
         },
       },
