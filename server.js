@@ -64,8 +64,7 @@ app.get('/api/balance', async (req, res) => {
     const r   = await axios.get(`${LEONARDO_BASE}/me`, { headers: leonardoHeaders(req) });
     const det = r.data?.user_details?.[0] || {};
     res.json({
-      balance: det.apiCredit?.apiCreditActionModel?.totalApiCredit
-             ?? det.subscriptionTokens ?? 0,
+      balance: (det.paidTokens ?? 0) + (det.subscriptionTokens ?? 0),
     });
   } catch (err) { handleError(res, err, 'Failed to fetch balance'); }
 });
@@ -79,11 +78,7 @@ app.post('/api/generate', async (req, res) => {
   try {
     const payload = { prompt, modelId, width, height, num_images: numImages };
 
-    if (quality) {
-      const qualMap = { low: 'DRAFT', medium: 'STANDARD', high: 'PREMIUM' };
-      payload.imageType = qualMap[quality] || 'STANDARD';
-    }
-
+    // Reference images
     if (referenceImageDataUrls?.length) {
       const imageIds = [];
       for (const dataUrl of referenceImageDataUrls) {
@@ -95,13 +90,21 @@ app.post('/api/generate', async (req, res) => {
       if (imageIds.length) payload.imagePrompts = imageIds;
     }
 
+    console.log(`[GENERATE] model=${modelId} size=${width}x${height} n=${numImages}`);
+
     const r = await axios.post(`${LEONARDO_BASE}/generations`, payload, {
       headers: leonardoHeaders(req),
     });
+
+    console.log(`[GENERATE] response=`, JSON.stringify(r.data).slice(0, 200));
+
     const generationId = r.data?.sdGenerationJob?.generationId;
     if (!generationId) throw new Error('No generationId returned');
     res.json({ sdGenerationJob: { generationId }, generationId });
-  } catch (err) { handleError(res, err, 'Image generation failed'); }
+  } catch (err) {
+    console.error('[GENERATE ERROR]', JSON.stringify(err?.response?.data));
+    handleError(res, err, 'Image generation failed');
+  }
 });
 
 // ─── /api/generation/:id  (poll) ─────────────────────────────────────────────
